@@ -9,6 +9,7 @@
 - [Error handling](#error-handling)
 - [Auth with permissions](#auth-with-permissions)
 - [Arrays](#arrays)
+- [Bank payment system](#bank-payment-system)
 
 ### Api response handling
 
@@ -154,4 +155,125 @@ const bird = items.find(item =>
 
 console.log(tool); // { id: 2, type: 'tool', name: 'hammer' }
 console.log(bird); // undefined
+```
+
+### Bank payment system:
+
+```typescript
+import { match, _ } from "matchixir";
+
+type PaymentEvent =
+    | {
+        type: "payment_initiated";
+        user: { id: string; tier: "basic" | "premium" | "enterprise" };
+        payload: { amount: number; currency: string };
+    }
+    | {
+        type: "payment_completed";
+        transaction: {
+            id: string;
+            method: "card" | "pix" | "bank_transfer";
+            details: { cardLast4?: string; bankCode?: string };
+        };
+        meta?: { retries: number };
+    }
+    | {
+        type: "payment_failed";
+        reason: { code: "INSUFFICIENT_FUNDS" | "FRAUD" | "BANK_DOWN" };
+        attempts: number;
+    }
+    | {
+        type: "batch_reconciliation";
+        results: Array<{ id: string; status: "ok" | "discrepancy" }>;
+        generatedAt: string;
+    };
+
+export function processPaymentEvent(ev: PaymentEvent) {
+    return match(ev)
+        .with(
+            {
+                type: "payment_initiated",
+                user: { tier: "enterprise" },
+            },
+            (x) =>
+                `Enterprise user ${x.user.id} initiated a payment of ${x.payload.amount} ${x.payload.currency}`
+        )
+        .with(
+            {
+                type: "payment_completed",
+                transaction: { method: "card", details: { cardLast4: _ } },
+            },
+            (x) =>
+                `Card payment completed (txn ${x.transaction.id}), card ending in ${x.transaction.details.cardLast4}`
+        )
+        .with(
+            {
+                type: "payment_completed",
+                transaction: { method: "bank_transfer", details: { bankCode: _ } },
+            },
+            (x) =>
+                `Bank transfer completed (txn ${x.transaction.id}), bank code ${x.transaction.details.bankCode}`
+        )
+        .with(
+            {
+                type: "payment_failed",
+                reason: { code: "INSUFFICIENT_FUNDS" },
+            },
+            (x) =>
+                `Payment failed due to insufficient funds. Attempts: ${x.attempts}`
+        )
+        .with(
+            {
+                type: "batch_reconciliation",
+                results: _,
+            },
+            (x) => {
+                const discrepancies = x.results.filter(
+                    (r) => r.status === "discrepancy"
+                );
+                return `Batch reconciliation completed. Discrepancies found: ${discrepancies.length}`;
+            }
+        )
+        .when(
+            (e) =>
+                e.type === "payment_failed" &&
+                e.reason.code === "FRAUD" &&
+                e.attempts > 1,
+            (x) =>
+                `FRAUD ALERT on repeated attempts (${x.attempts} attempts)`
+        )
+        .none(() => "Unknown or unhandled event");
+}
+
+
+console.log(
+    processPaymentEvent({
+        type: "payment_completed",
+        transaction: {
+            id: "T-992",
+            method: "card",
+            details: { cardLast4: "3812" },
+        },
+    })
+); // Card payment completed (txn T-992), card ending in 3812
+
+console.log(
+    processPaymentEvent({
+        type: "batch_reconciliation",
+        results: [
+            { id: "t1", status: "ok" },
+            { id: "t2", status: "discrepancy" },
+            { id: "t3", status: "discrepancy" },
+        ],
+        generatedAt: "2025-01-03T01:00:00Z",
+    })
+); // Batch reconciliation completed. Discrepancies found: 2
+
+console.log(
+    processPaymentEvent({
+        type: "payment_failed",
+        reason: { code: "FRAUD" },
+        attempts: 4,
+    })
+); // FRAUD ALERT on repeated attempts (4 attempts)
 ```
