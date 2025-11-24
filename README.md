@@ -95,8 +95,8 @@ const result = match(value)
     .when(isValidUser, () => ...)
     .none(() => "guest");
 ```
-
-This finalizes the chain and it's use is recommended.
+> [!IMPORTANT]
+> This finalizes the chain and it's use is recommended. The `none` finalizer returns the value contained within `Matcher<T>` — hence it makes the library fully expressive.
 
 ## Advanced usage
 
@@ -114,8 +114,6 @@ match(user)
     .with({ active: false }, u => ...)
     .none(u => ...)
 ```
-> [!IMPORTANT]
-> Matching is shallow. `{ a: { b: 2 } }` will not match deeply unless you implement custom logic with `.when`.
 
 ### Matching arrays
 
