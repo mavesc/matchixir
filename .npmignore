@@ -1,0 +1,16 @@
+node_modules
+tsconfig.tsbuildinfo
+coverage/
+.env
+.DS_Store
+docs_raw
+test/
+src/
+docs/
+CHANGELOG.md
+.gitignore
+jest.config.js
+tsconfig.json
+*.map
+*.log
+
