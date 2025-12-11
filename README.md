@@ -17,6 +17,7 @@ This library focuses on clarity, safety, and extensibility. Future versions may 
 - [Basic usage](#basic-usage)
 - [API overview](#api-overview)
 - [Advanced usage](#advanced-usage)
+- [Async matching](#async-matching)
 - [Design goals](#design-goals)
 - [Versioning](#versioning)
 - [Contributing](#contributing)
@@ -139,6 +140,26 @@ match(input)
     .when(Array.isArray, arr => arr.join(","))
     .none(() => "fallback");
 ```
+
+## Async Matching
+`matchixir` supports asynchronous branches automatically.
+If any `with()` or `when()` callback returns a `Promise`, the matcher becomes asynchronous and must be awaited.
+```typescript
+const result = await match(value)
+  .with({ type: "load" }, async () => {
+     await wait(300);
+     return "loaded";
+  })
+  .with({ type: "sync" }, () => "fast")
+  .none(() => "fallback");
+```
+
+- If all branches are synchronous → the matcher behaves synchronously.
+- If any branch returns a Promise → the matcher becomes async.
+- Synchronous code remains fully supported.
+
+This allows you to write expressive matching logic even when performing I/O, network requests, or long-running operations.
+
 ## Design goals
 
 - Provide ergonomic pattern matching similar to Elixir.

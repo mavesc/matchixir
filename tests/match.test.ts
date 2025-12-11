@@ -153,4 +153,22 @@ describe("matchixir - matches()", () => {
         expect(result).toBe("hit");
     });
 
+    test("array with async callback", async () => {
+        const result = await match([1, 2, 3])
+            .with([1, 2, 3], async () => new Promise(resolve => setTimeout(() => resolve("hit"), 100)))
+            .none(() => "miss");
+
+        expect(result).toBe("hit");
+    });
+
+    test("using await word internally", async () => {
+        const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+        const result = await match({ user: { id: 1 } })
+            .with({ user: { id: 1 } }, async () => { await sleep(100); return "hit" })
+            .none(() => "miss");
+
+        expect(result).toBe("hit");
+    });
+
 });

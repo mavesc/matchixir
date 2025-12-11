@@ -34,32 +34,44 @@ export class Matcher<T> {
     private resolved = false;
     private value: T;
     private result: unknown;
+    private isAsync = false;
 
     constructor(value: T) {
         this.value = value;
     }
 
+    private handleCallback<F>(callback: (args: any) => F): void {
+        const res = callback(this.value);
+        if (res instanceof Promise) {
+            this.isAsync = true;
+        }
+        this.result = res;
+        this.resolved = true;
+    }
+
     with<F>(pattern: Pattern<T>, callback: (args: any) => F): this {
         if (!this.resolved && matches(this.value, pattern)) {
-            this.result = callback(this.value);
-            this.resolved = true;
+            this.handleCallback(callback);
         }
         return this;
     }
 
     when<F>(predicate: (value: T) => boolean, callback: (args: any) => F): this {
         if (!this.resolved && predicate(this.value)) {
-            this.result = callback(this.value);
-            this.resolved = true;
+            this.handleCallback(callback);
         }
         return this;
     }
 
-    none<F>(callback: (args: any) => F): F {
+    none<F>(callback: (args: any) => F): Promise<F> | F {
         if (!this.resolved) {
-            this.result = callback(this.value);
-            this.resolved = true;
+            this.handleCallback(callback);
         }
+
+        if (this.isAsync) {
+            return Promise.resolve(this.result as F);
+        }
+
         return this.result as F;
     }
 }
