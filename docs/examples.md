@@ -235,7 +235,7 @@ export function processPaymentEvent(ev: PaymentEvent) {
             }
         )
         .when(
-            (e) =>
+            (e): e is Extract<PaymentEvent, { type: "payment_failed" }> =>
                 e.type === "payment_failed" &&
                 e.reason.code === "FRAUD" &&
                 e.attempts > 1,

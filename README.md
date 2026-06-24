@@ -73,6 +73,20 @@ match(value)
 
 Use this for literal matches.
 
+When matching a discriminated union, the callback argument is **narrowed** to the
+variant the pattern selected:
+
+```typescript
+type Result =
+    | { status: "ok"; data: number }
+    | { status: "error"; message: string };
+
+match(result)
+    .with({ status: "ok" }, v => v.data)       // v is the "ok" variant
+    .with({ status: "error" }, v => v.message) // v is the "error" variant
+    .none(() => 0);
+```
+
 ### .when(predicate, callback)
 
 Predicate-based matching.
@@ -84,7 +98,17 @@ match(value)
     .when(x => x % 2 === 0, x => "even")
 ```
 
-Useful for conditions, guards, and expressive logic.
+Useful for conditions, guards, and expressive logic. If the predicate is a
+TypeScript type guard, the callback argument is narrowed to the guarded type:
+
+```typescript
+const isOk = (r: Result): r is Extract<Result, { status: "ok" }> =>
+    r.status === "ok";
+
+match(result)
+    .when(isOk, v => v.data) // v is the "ok" variant
+    .none(() => 0);
+```
 
 ### .none(callback)
 
@@ -139,6 +163,26 @@ match(input)
     .when(x => typeof x === "string", x => x.toUpperCase())
     .when(Array.isArray, arr => arr.join(","))
     .none(() => "fallback");
+```
+
+### Type narrowing & result types
+
+`matchixir` is fully type-aware:
+
+- **Argument narrowing** — `.with(pattern, cb)` narrows `cb`'s argument to the
+  variant the pattern selects; `.when(guard, cb)` narrows it to the guarded type.
+  The `_` wildcard and non-matching patterns leave the argument as the full type
+  (never `never`).
+- **Result accumulation** — the value returned by `.none()` is the union of every
+  branch's return type, so the compiler knows all possible outcomes of the match:
+
+```typescript
+const out = match(result)
+    .with({ status: "ok" }, v => v.data)       // number
+    .with({ status: "error" }, v => v.message) // string
+    .none(() => null);                         // null
+
+// out: number | string | null
 ```
 
 ## Async Matching
